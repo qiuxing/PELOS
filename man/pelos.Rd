@@ -2,23 +2,23 @@
 \alias{pelos}
 %- Also NEED an '\alias' for EACH other topic documented here.
 \title{ Parameter Estimation of Linear ODE System }
-\description{ An optimization algorithm based on Levenberg-Marquardt algorithm to minimize the total sum of squares between observation value and numerical solution of the ODE system.  It returns the optimum initial value, intercept and coefficient matrix according to the sparse structure given. }
+\description{ An optimization algorithm based on Levenberg-Marquardt algorithm to minimize the total sum of squares between observation value and numerical solution of the ODE system.  It determines the initial value, intercept and coefficient matrix according to the sparse structure given. }
 \usage{
-pelos (TIMEPOINT, COEFFICIENT, INITIAL.VALUE, INTERCEPT, OBSERVATION,
-tol=1e-5, max_iter=30, dif_step=1e-3, timestep = 1e-2,
-Nprint=10, sparse.output=FALSE)
+pelos ( COEFFICIENT , INITIAL.VALUE , INTERCEPT = NULL , OBSERVATION , tol = 1e-5 , max_iter = 30 , dif_step = 1e-3 , timestep = 1e-2 , Nprint = 10 )
 }
 %- maybe also 'usage' for other objects documented here.
 \arguments{
-    \item{TIMEPOINT}{A vector which gives time-points of observations.}
     \item{COEFFICIENT}{
-        A 3-column matrix whcih gives sparse structure and starting value of coefficient matrix of linear ODE system.  Each row stands for one non-zero entry.  The first two columns are row,column number respectively, and the third column is its starting value.
+        A 3-column matrix which gives sparse structure and starting value of coefficient matrix of linear ODE system.  Each row stands for one non-zero entry.  The first two columns are row,column number respectively, and the third column is its starting value.
     }
-    \item{INITIAL.VALUE,INTERCEPT}{
-        Starting value of initial value and intercept of the ODE system respectively.  Must be of same length.
+    \item{INITIAL.VALUE}{
+        Starting value of initial value.  Its length must be equal to number of equations.
+    }
+    \item{INTERCEPT}{
+        A 2-column matrix which gives sparse structure and starting value of intercept vector.  Each row stands for one non-zero entry.  The first column is position of the non-zero entry and second column is its starting value.  Its default value is NULL, which forces intercept to be a 0-vector.
     }
     \item{OBSERVATION}{
-        A 4-column matrix which gives observation data used for sum-of-squares object fucntion.  Each row stands for one observation point.  The first three columns are its index,time-point and value respectively.  The last column is its weight in the object function.  Notice that this weight is inside the square.
+        A 4-column matrix which gives observation data used for sum-of-squares object function.  Each row stands for one observation point.  The first three columns are its index,time-point and value respectively.  The last column is its weight in the object function.  Notice that this weight is inside the square.
     }
     \item{tol}{
         Tolerance parameter to terminate iteration.  A smaller value gives a more accurate solution but allows the algorithm to perform more iterations.
@@ -34,9 +34,6 @@ Nprint=10, sparse.output=FALSE)
     }
     \item{Nprint}{
         Output sum of squares value after every this many iterations.  Setting it to 0 to disable outputs in iterative process.
-    }
-    \item{sparse.output}{
-        If true, the output coefficient matrix in return value is in sparse format, which is a vector of the same order as the third column of input parameter COEFFICIENT.  Otherwise, the return value is a full square matrix with 0 filled in.
     }
 }
 %\details{
