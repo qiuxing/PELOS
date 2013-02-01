@@ -157,6 +157,8 @@ module M_derivative_linear_ODE!{{{
     private
     public :: Nnonzero
     protected :: Nnonzero
+    public :: Nnonzero_INTERCEPT
+    protected :: Nnonzero_INTERCEPT
 !    public :: NONZERO_ROW
 !    protected :: NONZERO_ROW
 !    public :: NONZERO_COLUMN
@@ -167,6 +169,8 @@ module M_derivative_linear_ODE!{{{
     public :: S_set_NONZERO_ROW
     public :: S_set_NONZERO_COLUMN
     public :: S_set_NONZERO_VALUE
+    public :: S_set_Nnonzero_INTERCEPT
+    public :: S_set_NONZERO_INTERCEPT
     public :: S_set_INTERCEPT
     public :: S_derivative_linear_ODE
     ! Variable
@@ -174,6 +178,8 @@ module M_derivative_linear_ODE!{{{
     integer(kind=4) , dimension(:) , pointer :: NONZERO_ROW => null()
     integer(kind=4) , dimension(:) , pointer :: NONZERO_COLUMN => null()
     real(kind=8) , dimension(:) , pointer :: NONZERO_VALUE => null()
+    integer(kind=4) :: Nnonzero_INTERCEPT
+    integer(kind=4) , dimension(:) , pointer :: NONZERO_INTERCEPT => null()
     real(kind=8) , dimension(:) , pointer :: INTERCEPT => null()
     contains
     subroutine S_set_Nnonzero ( v )!{{{
@@ -182,7 +188,13 @@ module M_derivative_linear_ODE!{{{
         implicit none
         integer(kind=4) , intent(in) :: v
         Nnonzero = v
-        if ( v .le. 0 .or. v .ge. Nequation**2 ) then
+        if ( v .le. 0 .or. v .gt. Nequation**2 ) then
+            write(*,*) 'WARNING: Inappropriate number of non-zero entries &
+                in parameter matrix.  &
+                Parameter matrix is assumed to be full.'
+            Nnonzero = Nequation**2
+        end if
+        if ( v .eq. Nequation**2 ) then
             write(*,*) 'WARNING: Parameter matrix is full.'
             Nnonzero = Nequation**2
         end if
@@ -199,8 +211,8 @@ module M_derivative_linear_ODE!{{{
             stop
         end if
         if ( minval(V) .le. 0 .or. maxval(V) .gt. Nequation ) then
-            write(*,*) 'Inappropriate row number in &
-                Nonzero-row-position array.'
+            write(*,*) 'ERROR: Size of Nonzero-row-position array of &
+                parameter matrix not equal to Number of nonzero entries.'
             write(*,*) 'Minimal value:' , minval(V)
             write(*,*) 'Maximal value:' , maxval(V)
             stop
@@ -215,13 +227,13 @@ module M_derivative_linear_ODE!{{{
         implicit none
         integer(kind=4) , dimension(:) , intent(in) , target :: V
         if ( size(V) .ne. Nnonzero ) then
-            write(*,*) 'ERROR: Size of Nonzero-column-position array not &
-                equal to Number of nonzero entries.'
+            write(*,*) 'ERROR: Size of Nonzero-column-position array of &
+                parameter matrix not equal to Number of nonzero entries.'
             stop
         end if
         if ( minval(V) .le. 0 .or. maxval(V) .gt. Nequation ) then
-            write(*,*) 'Inappropriate column number in &
-                Nonzero-column-position array.'
+            write(*,*) 'ERROR: Inappropriate column number in &
+                Nonzero-column-position array of parameter matrix.'
             write(*,*) 'Minimal value:' , minval(V)
             write(*,*) 'Maximal value:' , maxval(V)
             stop
@@ -241,14 +253,49 @@ module M_derivative_linear_ODE!{{{
         NONZERO_VALUE => V
         return
     end subroutine S_set_NONZERO_VALUE!}}}
-    subroutine S_set_INTERCEPT ( V )!{{{
+    subroutine S_set_Nnonzero_INTERCEPT ( v )!{{{
         use M_rk4_parameter ,&
             only : Nequation
         implicit none
+        integer(kind=4) , intent(in) :: v
+        Nnonzero_INTERCEPT = v
+        if ( v .lt. 0 .or. v .gt. Nequation ) then
+            write(*,*) 'WARNING: Inappropriate number of nonzero entries &
+                in intercept.  &
+                Intercept is assumed to be full.'
+            Nnonzero_INTERCEPT = Nequation
+        end if
+        return
+    end subroutine S_set_Nnonzero_INTERCEPT!}}}
+    subroutine S_set_NONZERO_INTERCEPT ( V )!{{{
+        use M_rk4_parameter ,&
+            only : Nequation
+        implicit none
+        integer(kind=4) , dimension(:) , intent(in) , target :: V
+        if ( size(V) .ne. Nnonzero_INTERCEPT ) then
+            write(*,*) 'ERROR: Size of Nonzero-position array of intercept &
+                not equal to Number of nonzero entries in intercept.'
+            write(*,*) 'Number of nonzero entries: ' , Nnonzero_INTERCEPT
+            write(*,*) 'Size of Nonzero-position array of intercept: ' &
+                , size(V)
+            stop
+        end if
+        if ( minval(V) .le. 0 .or. maxval(V) .gt. Nequation ) then
+            write(*,*) 'ERROR: Inappropriate position in &
+                Nonzero-row-position array of intercept.'
+            write(*,*) 'Minimal value:' , minval(V)
+            write(*,*) 'Maximal value:' , maxval(V)
+            stop
+        end if
+        NONZERO_INTERCEPT => V
+        return
+    end subroutine S_set_NONZERO_INTERCEPT!}}}
+    subroutine S_set_INTERCEPT ( V )!{{{
+        implicit none
         real(kind=8) , dimension(:) , intent(in) , target :: V
-        if ( size(V) .ne. Nequation ) then
+        if ( size(V) .ne. Nnonzero_INTERCEPT ) then
             write(*,*) 'ERROR: Size of intercept array not &
-                equal to Number of equation.'
+                equal to Number of nonzero entries in intercept.'
             stop
         end if
         INTERCEPT => V
@@ -274,10 +321,14 @@ module M_derivative_linear_ODE!{{{
         end if
         D = 0
         do i=1,Nnonzero
-            D (NONZERO_ROW(i)) = D (NONZERO_ROW(i)) +&
-                NONZERO_VALUE(i) * X (NONZERO_COLUMN(i))
+            D (NONZERO_ROW(i)) = D (NONZERO_ROW(i)) &
+                + NONZERO_VALUE(i) * X (NONZERO_COLUMN(i))
         end do
-        D = D + INTERCEPT
+        if ( Nnonzero_INTERCEPT .gt. 0 ) then
+            D ( (/ ( NONZERO_INTERCEPT(i) , i=1,Nnonzero_INTERCEPT ) /) ) &
+                = D ( (/ ( NONZERO_INTERCEPT(i) , i=1,Nnonzero_INTERCEPT ) /) ) &
+                + INTERCEPT
+        end if
         return
     end subroutine S_derivative_linear_ODE!}}}
 end module M_derivative_linear_ODE!}}}
@@ -486,7 +537,8 @@ module M_least_squares!{{{
         use M_rk4_parameter ,&
             only : Nequation , Ntime! , timestep , TIMEPOINT
         use M_derivative_linear_ODE ,&
-            only : Nnonzero , S_set_NONZERO_VALUE , S_set_INTERCEPT ,&
+            only : Nnonzero , Nnonzero_INTERCEPT , &
+                S_set_NONZERO_VALUE , S_set_INTERCEPT , &
                 S_derivative_linear_ODE
         use M_rk4 ,&
             only : S_set_INITIAL , S_rk4
@@ -508,7 +560,7 @@ module M_least_squares!{{{
             write(*,*) 'Number of observation:' , Nobservation
             stop
         end if
-        if ( size(X) .ne. (Nnonzero+2*Nequation) ) then
+        if ( size(X) .ne. (Nnonzero+Nequation+Nnonzero_INTERCEPT) ) then
             write(*,*) 'ERROR: Incorrect size of &
                 least-squares input variable size.'
             stop
@@ -521,8 +573,12 @@ module M_least_squares!{{{
             stop
         end if
         call S_set_INITIAL ( X ( 1:Nequation ) )
-        call S_set_INTERCEPT ( X ( (Nequation+1):(2*Nequation) ) )
-        call S_set_NONZERO_VALUE ( X ( (2*Nequation+1): ) )
+        call S_set_NONZERO_VALUE ( &
+            X ( (Nequation+1):(Nequation+Nnonzero) ) )
+        if ( Nnonzero_INTERCEPT .gt. 0 ) then
+            call S_set_INTERCEPT ( &
+                X ( (Nequation+Nnonzero+1): ) )
+        end if
         ! RK4 to solve ODE
         call S_rk4 ( ODERESULT , S_derivative_linear_ODE )
         ! Output assignment
@@ -2675,159 +2731,173 @@ END SUBROUTINE fdjac2
 
 
 END MODULE M_Levenberg_Marquardt
-subroutine S_lmdif_ODE_linear &
-    ( Nequation , Ntime , timestep , TIMEPOINT , Nnonzero , NONZERO_ROW ,&
-    NONZERO_COLUMN , Nobservation , OBSERVATION_EQUATION ,&
-    OBSERVATION_TIME , OBSERVATION_VALUE , WEIGHT ,&
-    tol , max_func , dif_step , Nprint , X , Y )
-    use M_rk4_parameter ,&
-        only : S_set_Nequation , S_set_Ntime , S_set_timestep ,&
-            S_set_TIMEPOINT
-    use M_derivative_linear_ODE ,&
-        only : S_set_Nnonzero , S_set_NONZERO_ROW , S_set_NONZERO_COLUMN
-    use M_least_squares ,&
-        only : S_set_Nobservation , S_set_OBSERVATION_EQUATION ,&
-            S_set_OBSERVATION_TIME , S_set_OBSERVATION_VALUE ,&
-            S_set_WEIGHT , S_ODE_linear_ls_lmdif
-    use M_Levenberg_Marquardt ,&
-        only : lmdif
-    implicit none
-    ! Argument
-    integer(kind=4) , intent(in) :: Nequation
-    integer(kind=4) , intent(in) :: Ntime
-    real(kind=8) , intent(in) :: timestep
-    real(kind=8) , dimension(Ntime) , intent(inout) :: TIMEPOINT
-    integer(kind=4) , intent(in) :: Nnonzero
-    integer(kind=4) , dimension(Nnonzero) , intent(in) :: NONZERO_ROW
-    integer(kind=4) , dimension(Nnonzero) , intent(in) :: NONZERO_COLUMN
-    integer(kind=4) , intent(in) :: Nobservation
-    integer(kind=4) , dimension(Nobservation) , intent(in) :: OBSERVATION_EQUATION
-    real(kind=8) , dimension(Nobservation) , intent(in) :: OBSERVATION_TIME
-    real(kind=8) , dimension(Nobservation) , intent(in) :: OBSERVATION_VALUE
-    real(kind=8) , dimension(Nobservation) , intent(in) :: WEIGHT
-    real(kind=8) , intent(inout) :: tol
-    integer(kind=4) , intent(inout) :: max_func
-    real(kind=8) , intent(inout) :: dif_step
-    integer(kind=4) , intent(in) :: Nprint
-    real(kind=8) , dimension(Nnonzero+2*Nequation) , intent(inout) :: X
-    real(kind=8) , dimension(Nobservation) , intent(out) :: Y
-    ! LMDIF argument
-    integer(kind=4) :: m
-    integer(kind=4) :: n
-    real(kind=8) , dimension(:) , allocatable :: diag
-    integer(kind=4) :: mode = 1
-    real(kind=8) :: factor = 100.0
-    integer(kind=4) :: info
-    integer(kind=4) :: Nfunc
-    real(kind=8) , dimension(:,:) , allocatable :: fjac
-    integer(kind=4) , dimension(:) , allocatable :: ipvt
-    real(kind=8) , dimension(:) , allocatable :: qtf
-    ! F77 LMDIF argument
-!    integer(kind=4) :: ldfjac
-!    real(kind=8) , dimension(:) , allocatable :: w1
-!    real(kind=8) , dimension(:) , allocatable :: w2
-!    real(kind=8) , dimension(:) , allocatable :: w3
-!    real(kind=8) , dimension(:) , allocatable :: w4
-    ! Local
-    integer(kind=4) :: i
-    ! Initialization
-    CALL S_set_Nequation ( Nequation )
-    CALL S_set_Ntime ( Ntime )
-    CALL S_set_timestep ( timestep )
-    CALL S_set_TIMEPOINT ( TIMEPOINT )
-    CALL S_set_Nnonzero ( Nnonzero )
-    call S_set_NONZERO_ROW ( NONZERO_ROW )
-    call S_set_NONZERO_COLUMN ( NONZERO_COLUMN )
-    CALL S_set_Nobservation ( Nobservation )
-    call S_set_OBSERVATION_EQUATION ( OBSERVATION_EQUATION )
-    call S_set_OBSERVATION_TIME ( OBSERVATION_TIME )
-    call S_set_OBSERVATION_VALUE ( OBSERVATION_VALUE )
-    call S_set_WEIGHT ( WEIGHT )
-    ! LMDIF array initialization
-    m = size(Y)
-!    write(*,*) 'm=',m
-    n = size(X)
-    allocate ( diag (n) , stat = i )
-    if ( i .ne. 0 ) then
-        write(*,*) 'Unable to allocate memory for LMDIF-initialization.'
-        stop
-    end if
-    diag = 1.0
-    allocate ( fjac (m,n) , stat = i )
-    if ( i .ne. 0 ) then
-        write(*,*) 'Unable to allocate memory for LMDIF-initialization.'
-        stop
-    end if
-    allocate ( ipvt (n) , stat = i )
-    if ( i .ne. 0 ) then
-        write(*,*) 'Unable to allocate memory for LMDIF-initialization.'
-        stop
-    end if
-    allocate ( qtf (n) , stat = i )
-    if ( i .ne. 0 ) then
-        write(*,*) 'Unable to allocate memory for LMDIF-initialization.'
-        stop
-    end if
-    write(*,*) 'Initialization Completed.  Now iteration starts.'
-    call lmdif ( S_ODE_linear_ls_lmdif , m , n , X , Y , tol , tol , tol, &
-        max_func , dif_step , diag , mode , factor , Nprint , info , Nfunc ,&
-        fjac , ipvt , qtf )
-    ! F77 LMDIF
-!    ldfjac = m
-!    allocate ( w1 (n) , stat = i )
-!    if ( i .ne. 0 ) then
-!        write(*,*) 'Unable to allocate memory for LMDIF-initialization.'
-!        stop
-!    end if
-!    allocate ( w2 (n) , stat = i )
-!    if ( i .ne. 0 ) then
-!        write(*,*) 'Unable to allocate memory for LMDIF-initialization.'
-!        stop
-!    end if
-!    allocate ( w3 (n) , stat = i )
-!    if ( i .ne. 0 ) then
-!        write(*,*) 'Unable to allocate memory for LMDIF-initialization.'
-!        stop
-!    end if
-!    allocate ( w4 (m) , stat = i )
-!    if ( i .ne. 0 ) then
-!        write(*,*) 'Unable to allocate memory for LMDIF-initialization.'
-!        stop
-!    end if
-!    call lmdif ( S_ODE_linear_ls_lmdif , m , n , X , Y , tol , tol , tol, &
-!        max_func , dif_step , diag , mode , factor , Nprint , info , Nfunc ,&
-!        fjac , ldfjac , ipvt , qtf , w1 , w2 , w3 , w4 )
-    ! Output
-    write(*,*) 'Iteration terminates because:'
-    select case ( info )
-        case ( 0 )
-            write(*,*) 'Improper input parameters.'
-        case ( 1 )
-            write(*,*) 'Both actual and predicted relative reductions &
-                in the object function value are smaller than &
-                given tolerance.'
-        case ( 2 )
-            write(*,*) 'Relative error between two consecutive iterates &
-                is smaller than given tolerance.'
-        case ( 3 )
-            write(*,*) 'Actual and predicted relative reductions &
-                in the object function value , &
-                and relative error between two consecutive iterates &
-                are all smaller than given tolerance.'
-        case ( 4 )
-            write(*,*) 'The cosine of the angle between object function &
-                and any column of the Jacobian matrix is smaller than &
-                given tolerance in absolute value.'
-        case ( 5 )
-            write(*,*) 'Maximal number of object function evaluation &
-                is reached.'
-        case ( 6:8 )
-            write(*,*) 'Given tolerance may be too small.  &
-                No further reduction is possible.'
-        case default
-            write(*,*) 'Unknown mistake.'
-    end select
-    write(*,*) 'Total number of object function evaluation:' , Nfunc
-    write(*,*) 'Final residual sum of squares:' , norm2(Y)**2
-    return
-end subroutine S_lmdif_ODE_linear
+!module M_solver
+!    implicit none
+!    private
+!    public S_lmdif_ODE_linear
+!    contains
+    subroutine S_lmdif_ODE_linear &
+        ( Nequation , Ntime , timestep , TIMEPOINT , Nnonzero , NONZERO_ROW ,&
+        NONZERO_COLUMN , Nnonzero_Intercept , NONZERO_INTERCEPT , &
+        Nobservation , OBSERVATION_EQUATION ,&
+        OBSERVATION_TIME , OBSERVATION_VALUE , WEIGHT ,&
+        tol , max_func , dif_step , Nprint , X , Y )
+        use M_rk4_parameter ,&
+            only : S_set_Nequation , S_set_Ntime , S_set_timestep ,&
+                S_set_TIMEPOINT
+        use M_derivative_linear_ODE ,&
+            only : S_set_Nnonzero , S_set_NONZERO_ROW , S_set_NONZERO_COLUMN ,&
+                S_set_Nnonzero_INTERCEPT , S_set_NONZERO_INTERCEPT
+        use M_least_squares ,&
+            only : S_set_Nobservation , S_set_OBSERVATION_EQUATION ,&
+                S_set_OBSERVATION_TIME , S_set_OBSERVATION_VALUE ,&
+                S_set_WEIGHT , S_ODE_linear_ls_lmdif
+        use M_Levenberg_Marquardt ,&
+            only : lmdif
+        implicit none
+        ! Argument
+        integer(kind=4) , intent(in) :: Nequation
+        integer(kind=4) , intent(in) :: Ntime
+        real(kind=8) , intent(in) :: timestep
+        real(kind=8) , dimension(Ntime) , intent(inout) :: TIMEPOINT
+        integer(kind=4) , intent(in) :: Nnonzero
+        integer(kind=4) , dimension(Nnonzero) , intent(in) :: NONZERO_ROW
+        integer(kind=4) , dimension(Nnonzero) , intent(in) :: NONZERO_COLUMN
+        integer(kind=4) , intent(in) :: Nnonzero_Intercept
+        integer(kind=4) , dimension(Nnonzero_Intercept) , intent(in) :: NONZERO_INTERCEPT
+        integer(kind=4) , intent(in) :: Nobservation
+        integer(kind=4) , dimension(Nobservation) , intent(in) :: OBSERVATION_EQUATION
+        real(kind=8) , dimension(Nobservation) , intent(in) :: OBSERVATION_TIME
+        real(kind=8) , dimension(Nobservation) , intent(in) :: OBSERVATION_VALUE
+        real(kind=8) , dimension(Nobservation) , intent(in) :: WEIGHT
+        real(kind=8) , intent(inout) :: tol
+        integer(kind=4) , intent(inout) :: max_func
+        real(kind=8) , intent(inout) :: dif_step
+        integer(kind=4) , intent(in) :: Nprint
+        real(kind=8) , dimension(Nnonzero+Nequation+Nnonzero_Intercept) &
+            , intent(inout) :: X
+        real(kind=8) , dimension(Nobservation) , intent(out) :: Y
+        ! LMDIF argument
+        integer(kind=4) :: m
+        integer(kind=4) :: n
+        real(kind=8) , dimension(:) , allocatable :: diag
+        integer(kind=4) :: mode = 1
+        real(kind=8) :: factor = 100.0
+        integer(kind=4) :: info
+        integer(kind=4) :: Nfunc
+        real(kind=8) , dimension(:,:) , allocatable :: fjac
+        integer(kind=4) , dimension(:) , allocatable :: ipvt
+        real(kind=8) , dimension(:) , allocatable :: qtf
+        ! F77 LMDIF argument
+    !    integer(kind=4) :: ldfjac
+    !    real(kind=8) , dimension(:) , allocatable :: w1
+    !    real(kind=8) , dimension(:) , allocatable :: w2
+    !    real(kind=8) , dimension(:) , allocatable :: w3
+    !    real(kind=8) , dimension(:) , allocatable :: w4
+        ! Local
+        integer(kind=4) :: i
+        ! Initialization
+        CALL S_set_Nequation ( Nequation )
+        CALL S_set_Ntime ( Ntime )
+        CALL S_set_timestep ( timestep )
+        CALL S_set_TIMEPOINT ( TIMEPOINT )
+        CALL S_set_Nnonzero ( Nnonzero )
+        call S_set_NONZERO_ROW ( NONZERO_ROW )
+        call S_set_NONZERO_COLUMN ( NONZERO_COLUMN )
+        CALL S_set_Nnonzero_INTERCEPT ( Nnonzero_Intercept )
+!        write(*,*) 'Nnonzero_Intercept: ' , Nnonzero_Intercept
+        call S_set_NONZERO_INTERCEPT ( NONZERO_INTERCEPT )
+        CALL S_set_Nobservation ( Nobservation )
+        call S_set_OBSERVATION_EQUATION ( OBSERVATION_EQUATION )
+        call S_set_OBSERVATION_TIME ( OBSERVATION_TIME )
+        call S_set_OBSERVATION_VALUE ( OBSERVATION_VALUE )
+        call S_set_WEIGHT ( WEIGHT )
+        ! LMDIF array initialization
+        m = size(Y)
+    !    write(*,*) 'm=',m
+        n = size(X)
+        allocate ( diag (n) , stat = i )
+        if ( i .ne. 0 ) then
+            write(*,*) 'Unable to allocate memory for LMDIF-initialization.'
+            stop
+        end if
+        diag = 1.0
+        allocate ( fjac (m,n) , stat = i )
+        if ( i .ne. 0 ) then
+            write(*,*) 'Unable to allocate memory for LMDIF-initialization.'
+            stop
+        end if
+        allocate ( ipvt (n) , stat = i )
+        if ( i .ne. 0 ) then
+            write(*,*) 'Unable to allocate memory for LMDIF-initialization.'
+            stop
+        end if
+        allocate ( qtf (n) , stat = i )
+        if ( i .ne. 0 ) then
+            write(*,*) 'Unable to allocate memory for LMDIF-initialization.'
+            stop
+        end if
+        write(*,*) 'Initialization Completed.  Now iteration starts.'
+        call lmdif ( S_ODE_linear_ls_lmdif , m , n , X , Y , tol , tol , tol, &
+            max_func , dif_step , diag , mode , factor , Nprint , info , Nfunc ,&
+            fjac , ipvt , qtf )
+        ! F77 LMDIF
+    !    ldfjac = m
+    !    allocate ( w1 (n) , stat = i )
+    !    if ( i .ne. 0 ) then
+    !        write(*,*) 'Unable to allocate memory for LMDIF-initialization.'
+    !        stop
+    !    end if
+    !    allocate ( w2 (n) , stat = i )
+    !    if ( i .ne. 0 ) then
+    !        write(*,*) 'Unable to allocate memory for LMDIF-initialization.'
+    !        stop
+    !    end if
+    !    allocate ( w3 (n) , stat = i )
+    !    if ( i .ne. 0 ) then
+    !        write(*,*) 'Unable to allocate memory for LMDIF-initialization.'
+    !        stop
+    !    end if
+    !    allocate ( w4 (m) , stat = i )
+    !    if ( i .ne. 0 ) then
+    !        write(*,*) 'Unable to allocate memory for LMDIF-initialization.'
+    !        stop
+    !    end if
+    !    call lmdif ( S_ODE_linear_ls_lmdif , m , n , X , Y , tol , tol , tol, &
+    !        max_func , dif_step , diag , mode , factor , Nprint , info , Nfunc ,&
+    !        fjac , ldfjac , ipvt , qtf , w1 , w2 , w3 , w4 )
+        ! Output
+        write(*,*) 'Iteration terminates because:'
+        select case ( info )
+            case ( 0 )
+                write(*,*) 'Improper input parameters.'
+            case ( 1 )
+                write(*,*) 'Both actual and predicted relative reductions &
+                    in the object function value are smaller than &
+                    given tolerance.'
+            case ( 2 )
+                write(*,*) 'Relative error between two consecutive iterates &
+                    is smaller than given tolerance.'
+            case ( 3 )
+                write(*,*) 'Actual and predicted relative reductions &
+                    in the object function value , &
+                    and relative error between two consecutive iterates &
+                    are all smaller than given tolerance.'
+            case ( 4 )
+                write(*,*) 'The cosine of the angle between object function &
+                    and any column of the Jacobian matrix is smaller than &
+                    given tolerance in absolute value.'
+            case ( 5 )
+                write(*,*) 'Maximal number of object function evaluation &
+                    is reached.'
+            case ( 6:8 )
+                write(*,*) 'Given tolerance may be too small.  &
+                    No further reduction is possible.'
+            case default
+                write(*,*) 'Unknown mistake.'
+        end select
+        write(*,*) 'Total number of object function evaluation:' , Nfunc
+        write(*,*) 'Final residual sum of squares:' , norm2(Y)**2
+        return
+    end subroutine S_lmdif_ODE_linear
+!end module M_solver
