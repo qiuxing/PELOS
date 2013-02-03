@@ -1,8 +1,8 @@
 Package: PELOS
 Type: Package
 Title: Parameter Estimation of Linear ODE System
-Version: 0.4
-Date: Feb.1, 2013
+Version: 0.4.1
+Date: Feb.2, 2013
 Author: GuuD Wu, Xing Qiu
 Maintainer: <guuuuud@gmail.com>
 Description: An optimization algorithm based on Levenberg-Marquardt algorithm to minimize the total sum of squares between observation value and numerical solution of the ODE system.  It returns the optimum initial value, intercept and coefficient matrix according to the sparse structure given.
