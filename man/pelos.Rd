@@ -61,6 +61,8 @@ pelos(OBSERVATION, COEFFICIENT, INITIAL.VALUE, INTERCEPT=NULL, tol=1e-5, max_ite
 \examples{
 data(Cells)
 res <- pelos(Cells, A0, X0, b0, max_iter=100)
+## homogeneous equation
+res2 <- pelos(Cells, A0, X0, max_iter=100)
 }
 % Add one or more standard keywords, see file 'KEYWORDS' in the
 % R documentation directory.

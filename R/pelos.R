@@ -8,7 +8,7 @@ pelos <- function(OBSERVATION, COEFFICIENT, INITIAL.VALUE, INTERCEPT=NULL, tol=1
 #    NONZERO_COLUMN <- COEFFICIENT[,2]
 #    COEFFICIENT.MATRIX <- COEFFICIENT[,3]
     Nnonzero <- nrow(COEFFICIENT)
-    Nnonzero_intercept <- nrow(INTERCEPT)
+    Nnonzero_intercept <- ifelse(is.null(INTERCEPT), 0, nrow(COEFFICIENT))
     Nobservation <- nrow(OBSERVATION)
     max_func <- max_iter * (Nequation+Nnonzero+Nnonzero_intercept+3)
     Y <- numeric(Nobservation)
