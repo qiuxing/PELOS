@@ -2,14 +2,14 @@ pelos <- function( COEFFICIENT , INITIAL.VALUE , INTERCEPT = NULL , OBSERVATION 
 #, sparse.output = FALSE )
 {
     Nequation <- length(INITIAL.VALUE)
-    Ntime <- length(TIMEPOINT)
     TIMEPOINT <- sort(unique(OBSERVATION[,2]))
+    Ntime <- length(TIMEPOINT)
 #    NONZERO_ROW <- COEFFICIENT[,1]
 #    NONZERO_COLUMN <- COEFFICIENT[,2]
 #    COEFFICIENT.MATRIX <- COEFFICIENT[,3]
-    Nnonzero <- length(COEFFICIENT)/3
-    Nnonzero_intercept <- length(INTERCEPT)/2
-    Nobservation <- length(OBSERVATION)/4
+    Nnonzero <- nrow(COEFFICIENT)
+    Nnonzero_intercept <- nrow(INTERCEPT)
+    Nobservation <- nrow(OBSERVATION)
     max_func <- max_iter * ( Nequation+Nnonzero+Nnonzero_intercept+3 )
     Y <- numeric(Nobservation)
 
