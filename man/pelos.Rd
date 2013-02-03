@@ -58,12 +58,10 @@ pelos ( COEFFICIENT , INITIAL.VALUE , INTERCEPT = NULL , OBSERVATION , tol = 1e-
 %\seealso{
 %  \code{\link{sum}}, \code{\link{help}}.
 %}
-%\examples{
-%a <- 1:5
-%b <- 5:20
-%y <- conv(a,b)
-%y
-%}
+\examples{
+data(Cells)
+res <- pelos(A0, X0, b0, Cells, max_iter=100)
+}
 % Add one or more standard keywords, see file 'KEYWORDS' in the
 % R documentation directory.
 \keyword{least-squares}
